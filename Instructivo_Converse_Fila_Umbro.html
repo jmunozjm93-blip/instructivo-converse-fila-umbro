@@ -41,6 +41,7 @@ transition:transform .5s cubic-bezier(.3,1.45,.5,1),width .5s cubic-bezier(.3,1.
 opacity .22s ease}
 .gota.on{opacity:1}
 .gota.sin{transition:opacity .22s ease}
+.gota.cuad{border-radius:8px}
 .mainnav.nomega .mega{display:none!important}
 .wrap{min-height:100vh}   /* asi cualquier seccion, aunque sea corta, puede quedar arriba al elegirla */
 /* mega menu */
@@ -58,7 +59,7 @@ font-size:12.5px;color:#43474f;padding:3.5px 0;cursor:pointer;text-decoration:no
 .mbig{text-decoration:none;color:inherit;display:block}
 a{-webkit-tap-highlight-color:rgba(0,0,0,.12)}
 html{scroll-behavior:smooth}
-.mcol .ml:hover{color:#000;text-decoration:underline}
+.mcol .ml:hover{color:#000}
 .mcol .ml.hl{font-weight:700;color:#16181d}
 .mn{font-size:10.5px;color:#a8adb6;font-weight:600;flex-shrink:0}
 .mdesc{font-size:11.5px;color:#8b9098;margin-top:11px;line-height:1.45}
@@ -362,7 +363,8 @@ list-style:none;letter-spacing:.4px;display:inline-block;padding:5px 0}
 .top2{grid-template-columns:360px 1fr}
 
 /* ===== selector de marca (arriba a la derecha) ===== */
-.brands{display:flex;align-items:center;gap:4px;flex-shrink:0}
+.brands{display:flex;align-items:center;gap:4px;flex-shrink:0;position:relative}
+.bsel:hover:not(.on){background:transparent;border-color:transparent}   /* deja ver la gota */
 .bsel{display:flex;align-items:center;justify-content:center;height:30px;padding:0 12px;
 border:1px solid #e2e4e9;border-radius:7px;text-decoration:none;color:#9aa0aa;
 font-weight:900;font-size:12.5px;letter-spacing:1px;background:#fff;transition:.13s;
@@ -5155,31 +5157,49 @@ html.bq details.card.hit{display:block}
   function sube(el, cls){ while (el && el.nodeType === 1 && !tiene(el, cls)) el = el.parentNode; return (el && el.nodeType === 1) ? el : null; }
 
   // --- gota: solo tiene sentido con mouse ---
+  // Una gota por grupo de opciones: se desliza entre los elementos del grupo y se
+  // desvanece al salir. `ajuste` = {x, y: margen extra alrededor del elemento
+  // (negativo lo achica), alto: alto fijo opcional, forma: clase extra}
+  function gotaEn(grupo, items, zonaSalida, ajuste){
+    if (!grupo || !items.length) return;
+    var gota = document.createElement('span');
+    var base = 'gota' + (ajuste.forma ? ' ' + ajuste.forma : '');
+    gota.className = base;
+    grupo.appendChild(gota);
+    var visible = false;
+
+    function mover(el, aparecer){
+      var r = el.getBoundingClientRect();
+      var ref = (gota.offsetParent || grupo).getBoundingClientRect();   // contra lo que se posiciona
+      var ancho = r.width + 2 * ajuste.x;
+      var alto  = ajuste.alto ? Math.min(ajuste.alto, r.height) : r.height + 2 * ajuste.y;
+      var x = r.left - ref.left - ajuste.x, y = r.top - ref.top + (r.height - alto) / 2;
+      if (aparecer) gota.className = base + ' sin';   // aparece en el lugar, sin deslizarse desde 0,0
+      gota.style.width  = ancho + 'px';
+      gota.style.height = alto + 'px';
+      gota.style.transform = 'translate(' + x + 'px,' + y + 'px)';
+      if (aparecer){ void gota.offsetWidth; gota.className = base; }
+      gota.className = base + ' on';
+    }
+    [].forEach.call(items, function(el){
+      el.addEventListener('mouseenter', function(){ mover(el, !visible); visible = true; });
+    });
+    zonaSalida.addEventListener('mouseleave', function(){ visible = false; gota.className = base; });
+  }
+
   var conMouse = window.matchMedia && window.matchMedia('(hover:hover)').matches;
   if (conMouse){
-    [].forEach.call(document.querySelectorAll('.hd .mainnav'), function(nav){
-      var hd = sube(nav, 'hd');
-      if (!hd) return;
-      var gota = document.createElement('span');
-      gota.className = 'gota';
-      hd.appendChild(gota);
-      var visible = false;
-
-      function mover(ni, aparecer){
-        var r = ni.getBoundingClientRect(), h = hd.getBoundingClientRect();
-        var alto = Math.min(Math.max(r.height - 22, 26), 36);
-        var x = r.left - h.left + 3, y = r.top - h.top + (r.height - alto) / 2;
-        if (aparecer) gota.className = 'gota sin';     // aparece en el lugar, sin deslizarse desde 0,0
-        gota.style.width  = (r.width - 6) + 'px';
-        gota.style.height = alto + 'px';
-        gota.style.transform = 'translate(' + x + 'px,' + y + 'px)';
-        if (aparecer){ void gota.offsetWidth; gota.className = 'gota'; }
-        gota.className = 'gota on';
-      }
-      [].forEach.call(nav.querySelectorAll('.ni'), function(ni){
-        ni.addEventListener('mouseenter', function(){ mover(ni, !visible); visible = true; });
+    [].forEach.call(document.querySelectorAll('.hd'), function(hd){
+      // menu principal: HISTORIA / CORE / CARRY OVER / NEW / OLD
+      var nav = hd.querySelector('.mainnav');
+      if (nav) gotaEn(hd, nav.querySelectorAll('.ni'), nav, { x:-3, alto:36 });
+      // selector de marca: CONVERSE / FILA / UMBRO
+      var brands = hd.querySelector('.brands');
+      if (brands) gotaEn(brands, brands.querySelectorAll('.bsel'), brands, { x:0, y:0, forma:'cuad' });
+      // links de cada mega menu (Ver todo, Lineas, Modelos, Genero, Temporada...)
+      [].forEach.call(hd.querySelectorAll('.mega'), function(mega){
+        gotaEn(mega, mega.querySelectorAll('.ml'), mega, { x:9, y:1 });
       });
-      nav.addEventListener('mouseleave', function(){ visible = false; gota.className = 'gota'; });
     });
   }
 
