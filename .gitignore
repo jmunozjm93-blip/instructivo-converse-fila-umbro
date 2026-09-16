@@ -12,3 +12,6 @@ desktop.ini
 *.tmp
 *.bak
 ~$*
+
+# Config local de Claude Code
+.claude/

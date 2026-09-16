@@ -26,9 +26,23 @@ display:flex;align-items:center;gap:30px}
 cursor:pointer;color:#16181d;height:100%}
 .nilab{display:flex;align-items:center;padding:0 15px;cursor:pointer;height:100%;
 text-decoration:none;color:inherit;border-bottom:2px solid transparent}
-.nilab span{padding:3px 0;border-bottom:2px solid transparent;pointer-events:none}
-.ni:hover .nilab span,
+.nilab span{padding:3px 0;border-bottom:2px solid transparent;pointer-events:none;
+transition:color .18s}
+.ni:hover .nilab span{color:#000}
 .navr{font-size:10.5px;color:#9aa0aa;font-weight:700;letter-spacing:1.1px;flex-shrink:0}
+/* gota estilo iOS: se desliza bajo la opcion que tiene el mouse encima */
+.gota{position:absolute;top:0;left:0;width:0;height:0;border-radius:999px;pointer-events:none;
+z-index:-1;opacity:0;will-change:transform,width;
+background:linear-gradient(180deg,rgba(255,255,255,.95),rgba(232,234,238,.85));
+box-shadow:0 1px 2px rgba(0,0,0,.05),0 6px 16px rgba(0,0,0,.10),
+inset 0 1px 0 rgba(255,255,255,1),inset 0 -1px 0 rgba(0,0,0,.05),0 0 0 1px rgba(0,0,0,.06);
+-webkit-backdrop-filter:blur(10px) saturate(1.5);backdrop-filter:blur(10px) saturate(1.5);
+transition:transform .5s cubic-bezier(.3,1.45,.5,1),width .5s cubic-bezier(.3,1.45,.5,1),
+opacity .22s ease}
+.gota.on{opacity:1}
+.gota.sin{transition:opacity .22s ease}
+.mainnav.nomega .mega{display:none!important}
+.wrap{min-height:100vh}   /* asi cualquier seccion, aunque sea corta, puede quedar arriba al elegirla */
 /* mega menu */
 .mega{display:none;position:absolute;left:0;right:0;top:100%;background:#fff;
 border-top:1px solid #e5e7ea;box-shadow:0 14px 30px rgba(0,0,0,.10);padding:26px 0 30px;
@@ -5132,6 +5146,86 @@ html.bq details.card.hit{display:block}
         buscar('');
       }
     });
+  });
+})();
+
+/* ---------- menu: gota iOS al pasar el mouse + ir directo a la seccion elegida ---------- */
+(function(){
+  function tiene(el, cls){ return !!(el && el.className && (' ' + el.className + ' ').indexOf(' ' + cls + ' ') >= 0); }
+  function sube(el, cls){ while (el && el.nodeType === 1 && !tiene(el, cls)) el = el.parentNode; return (el && el.nodeType === 1) ? el : null; }
+
+  // --- gota: solo tiene sentido con mouse ---
+  var conMouse = window.matchMedia && window.matchMedia('(hover:hover)').matches;
+  if (conMouse){
+    [].forEach.call(document.querySelectorAll('.hd .mainnav'), function(nav){
+      var hd = sube(nav, 'hd');
+      if (!hd) return;
+      var gota = document.createElement('span');
+      gota.className = 'gota';
+      hd.appendChild(gota);
+      var visible = false;
+
+      function mover(ni, aparecer){
+        var r = ni.getBoundingClientRect(), h = hd.getBoundingClientRect();
+        var alto = Math.min(Math.max(r.height - 22, 26), 36);
+        var x = r.left - h.left + 3, y = r.top - h.top + (r.height - alto) / 2;
+        if (aparecer) gota.className = 'gota sin';     // aparece en el lugar, sin deslizarse desde 0,0
+        gota.style.width  = (r.width - 6) + 'px';
+        gota.style.height = alto + 'px';
+        gota.style.transform = 'translate(' + x + 'px,' + y + 'px)';
+        if (aparecer){ void gota.offsetWidth; gota.className = 'gota'; }
+        gota.className = 'gota on';
+      }
+      [].forEach.call(nav.querySelectorAll('.ni'), function(ni){
+        ni.addEventListener('mouseenter', function(){ mover(ni, !visible); visible = true; });
+      });
+      nav.addEventListener('mouseleave', function(){ visible = false; gota.className = 'gota'; });
+    });
+  }
+
+  // --- al elegir una opcion del menu: cerrar el mega menu y bajar hasta la seccion ---
+  var desdeMenu = false;
+  var marca = { s:'cv', f:'fl', u:'um' };
+
+  function irASeccion(){
+    var m = /^#([sfu])-([A-Z]+)$/.exec(location.hash);
+    if (!m) return;
+    var sec = document.querySelector('.sec.' + marca[m[1]] + '[data-dur="' + m[2] + '"]');
+    if (!sec) return;
+    var y = sec.getBoundingClientRect().top + (window.pageYOffset || document.documentElement.scrollTop || 0) - 12;
+    try { window.scrollTo({ top:y, behavior:'smooth' }); } catch(e){ window.scrollTo(0, y); }
+  }
+
+  document.addEventListener('click', function(ev){
+    var a = ev.target;
+    while (a && a.nodeType === 1 && a.tagName !== 'A') a = a.parentNode;
+    if (!a || a.nodeType !== 1) return;
+    var href = a.getAttribute('href') || '';
+    if (href.charAt(0) !== '#') return;
+    var nav = sube(a, 'mainnav');
+    if (!nav) return;                                   // solo los links del menu principal
+    desdeMenu = true;
+    // el mega menu se cierra hasta que el mouse salga de esa opcion
+    if (!tiene(nav, 'nomega')) nav.className += ' nomega';
+    var ni = sube(a, 'ni');
+    if (ni){
+      var quitar = function(){
+        nav.className = nav.className.replace(/ ?nomega/g, '');
+        ni.removeEventListener('mouseleave', quitar);
+      };
+      ni.addEventListener('mouseleave', quitar);
+    }
+    if (location.hash === href){                        // mismo hash: no habra hashchange, bajar igual
+      ev.preventDefault();
+      desdeMenu = false;
+      irASeccion();
+    }
+  });
+
+  window.addEventListener('hashchange', function(){
+    if (!desdeMenu) return;                             // los links de marca (CONVERSE/FILA/UMBRO) muestran su portada
+    desdeMenu = false;
+    setTimeout(irASeccion, 0);                          // espera a que :target muestre la seccion
   });
 })();
 </script>
